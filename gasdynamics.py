@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import numpy as np
 import scipy.optimize as opt
+import time
 # might just move opt into the prandtlMeyerM cause it might be the only place its used but that would also slow things down in the middle instead of at the beginning
 r2d = 180 / np.pi
 d2r = np.pi / 180
@@ -9,9 +10,12 @@ def prandtlMeyerAng(M, gamma=1.4):
     try:
         iter(M)
         M = np.array(M)
+        # if any(M < 1):  print(M[M < 1])#;  M[M < 1] = 1
     except:
         pass
-    return np.sqrt((gamma+1) / (gamma-1)) * np.arctan(np.sqrt((gamma-1) / (gamma+1) * (M**2 - 1)))*r2d - np.arccos(1 / M)*r2d
+        # if M < 1:  M = 1
+    c = np.sqrt((gamma+1) / (gamma-1))
+    return c * np.arctan(np.sqrt(M**2 - 1) / c)*r2d - np.arccos(1 / M)*r2d
 
 def prandtlMeyerM(nu, gamma=1.4):
     # solve for M where prandtlMeyerAng(M) = nu based on the PMM function below
@@ -33,6 +37,7 @@ def PMM(nu, gamma=1.4):
     # lastly i solved this for M, getting results that are too low in front of the assymtote and too high behind
     c = np.sqrt((gamma+1)/(gamma-1))
     a = 1.9127285932696898/(c-2) + 2.489
-    return np.sqrt((a*(1 - a/(a + c*gamma*np.tan(d2r * nu))))**2 + 1)
+    M =  np.sqrt((a*(1 - a/(a + c*gamma*np.tan(d2r * nu))))**2 + 1)
+    return M + gamma/5.6 * (1 - np.exp(-2*(M-1)) - (2*M/a) / (1 + np.exp(-a/2*(M-a))))
 
 
