@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+import matplotlib as mpl
+# import seaborn as sns;  sns.set()
 import gasdynamics as gas
 import time
 
@@ -10,18 +12,38 @@ r2d = 180 / np.pi
 Me = 5
 throatHeight = 1
 throatRad = throatHeight / 2
-numInit = 16
+numInit = 64
 numFullBounce = 1
 
 numTotalLen = numInit * (numFullBounce*(numInit + 1) + 1)
 nuE = gas.prandtlMeyerAng(Me, gamma)
 # TODO figure out if this is actually what i want for the max angle
+thetaE = nuE / 2
+dxE = throatRad*np.sin(d2r*thetaE)
+dyE = throatRad*(1 - np.cos(d2r*thetaE)) + throatHeight/2
+# print(dxE, dyE)
+ntS = lambda thetaS: r2d*np.arcsin((dxE - (throatHeight/2 + dyE) * np.sqrt(gas.prandtlMeyerM(thetaS)**2 -1)) / throatRad)
+thetaS = thetaE / numInit
+newThetaS = abs(np.arcsin(dxE/throatRad * (.5 - dyE/throatHeight))*r2d)
+# newThetaS = ntS(thetaS)
+tmp = ntS(newThetaS)
+# print(thetaE, thetaS, newThetaS)
+tS = thetaS
+while (newThetaS < tS) or (abs(newThetaS - tS) > .01):
+    old = tS
+    tS = newThetaS
+    tmp2 = tmp
+    tmp = ntS(tS) - tS
+    newThetaS = tS - (tmp*(tS-old)) / (tmp - tmp2)
+    if newThetaS < 0:   newThetaS = tS/2
+    if not np.isfinite(newThetaS):  newThetaS = tS
+    # print(tS, newThetaS, tmp, tmp2)
+thetaS = newThetaS
+delta = (np.arange(numInit) * (thetaE - thetaS) / (numInit-1) + thetaS).tolist() + [0] * (numTotalLen - numInit)
+# nu at the throat is 0 because Mt = 1
+# TODO sometimes i get warnings here, check it out
 # it seems that the solver will try numbers < 1 and then it throws warnings
 # but if you let it recieve the nan itll handle it
-thetaE = nuE / 2
-delta = (np.arange(1, numInit+1) * thetaE / numInit).tolist() + [0] * (numTotalLen - numInit)
-# nu at the throat is 0 because Mt = 0
-# TODO sometimes i get warnings here, check it out
 M = np.concatenate((gas.prandtlMeyerM(delta[:numInit], gamma), np.zeros(numTotalLen - numInit)))
 states = pd.DataFrame({'M':M, 'delta':delta})
 
@@ -36,16 +58,16 @@ states.loc[:numInit-1, 'y'] = (throatHeight/2 + throatRad) - throatRad * np.cos(
 # the top wall will have the id of -1 and centerline of -2
 states.loc[:numInit-1, 'lLine'] = -1
 states.loc[:numInit-1, 'rLine'] = states.loc[:numInit-1, :].index
+print(states['R'][numInit-1])
 
-print(states.__sizeof__())
-print(states.loc[:numInit-1, :], len(states))
-print(states, len(states))
+# print(states.__sizeof__())
+# print(states.loc[:numInit-1, :], len(states))
 
-fig, ax = plt.subplots()
-ax.plot(states.x, states.y, '.')
-ax.plot([0, throatRad], [1, 1], '.')
-fig.savefig('init.png')
-plt.close(fig)
+# fig, ax = plt.subplots()
+# ax.plot(states.x, states.y, '.')
+# ax.plot([0, throatRad], [1, 1], '.')
+# fig.savefig('init.png')
+# plt.close(fig)
 
 
 ######## Start of copying from last time ####### 
@@ -68,13 +90,6 @@ for bounce in range(numFullBounce):
         states.loc[i, 'x']  = r['x']  - r['y'] / np.tan(d2r*(r['delta'] - r['mu']))
         states.loc[i, 'y']  = 0     # centerline defined at 0
         i += 1
-
-        fig, ax = plt.subplots()
-        ax.plot(states.x, states.y, '.')
-        ax.plot([0, throatRad], [1, 1], '.')
-        # fig.savefig('init.png')
-        plt.show()
-        plt.close(fig)
 
         for intLine in np.arange(curLine+1, curLine+numInit) % numInit:
             # calc for each line intersected in order
@@ -109,7 +124,7 @@ for bounce in range(numFullBounce):
         # so R = finalCharNu = prandtlMeyerAng(Me)
         # so delta = R - nu = finalCharNu - nu
         # where nu is given by all the properties being constant
-        finalCharNu = gas.prandtlMeyerAng(Me)
+        finalCharNu = states['R'][numInit-1]
         states.loc[i, 'delta'] = finalCharNu - l['nu']
         states.loc[i, 'nu'] = l['nu']
         states.loc[i, 'R']  = states['nu'][i] + states['delta'][i]
@@ -122,19 +137,55 @@ for bounce in range(numFullBounce):
         #print(stuffs)
 
 print(states.__sizeof__())
-print(states.loc[:numInit-1, :], len(states))
 print(states, len(states))
 
+# print(states.query(f'(lLine == {numInit-1}) or (rLine == {numInit-1})')['R'])
 
-fig, ax = plt.subplots()
-ax.plot(states.x, states.y, '.')
-ax.plot([0, throatRad], [1, 1], '.')
+extra = states.loc[[0, numInit, states.query(f'(lLine == {-2}) or (rLine == {-2})').index[-1]], :].reset_index(drop=True)
+extra.loc[:1, 'M'] = 1
+extra.loc[:1, 'x'] = 0
+extra.loc[0, 'y'] = throatHeight/2
+extra.loc[1, 'y'] = 0
+extra.loc[2, 'x'] = states['x'].max()
+extra.loc[1:2, 'lLine'] = -3
+extra.loc[0, 'rLine'] = -3
+print(extra)
+
+states = extra.loc[:1, :].append(states.append(extra.loc[2, :], ignore_index=True), ignore_index=True)
+
+fig, ax = plt.subplots(2, 1)
+sc = ax[0].scatter(states['x'], states['y'], c=states['M'], alpha=.95, zorder=1, cmap=mpl.cm.gnuplot, marker='.')
+print(states)
 for i in range(numInit):
-    ax.plot(states.query(f'(lLine == {i}) or (rLine == {i})')['x'], states.query(f'(lLine == {i}) or (rLine == {i})')['y'], 'c-')
-ax.plot(states.query(f'(lLine == {-2}) or (rLine == {-2})')['x'], states.query(f'(lLine == {-2}) or (rLine == {-2})')['y'], 'k--')
-ax.plot(states.query(f'(lLine == {-1}) or (rLine == {-1})')['x'], states.query(f'(lLine == {-1}) or (rLine == {-1})')['y'], 'k')
-ax.grid()
-ax.set_aspect('equal')
-fig.savefig('final.png')
+    ax[0].plot(states.query(f'(lLine == {i}) or (rLine == {i})')['x'], states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', LineWidth=.5, Color='grey', zorder=0)
+ax[0].plot(states.query(f'rLine == {-2}')['x'], states.query(f'rLine == {-2}')['y'], 'k--', LineWidth=1, zorder=1)
+ax[0].plot(states.query(f'lLine == {-1}')['x'], states.query(f'lLine == {-1}')['y'], 'k', LineWidth=1, zorder=1)
+fig.colorbar(sc, ax=ax[0], shrink=.6, aspect=10, label='M', ticks=np.arange(1, int(states['M'].max()+10**-10) + 1))
+ax[0].grid()
+ax[0].set_aspect('equal')
+ax[0].set_xlim(0, max(states['x']))
+ax[0].set_ylim(0, max(states['y']))
+ax[0].set_xlabel('x/t')
+ax[0].set_ylabel('y/t')
+
+
+triang = mpl.tri.Triangulation(states['x'], states['y'])
+
+con = ax[1].tripcolor(triang, states['M'], shading='gouraud', cmap=mpl.cm.gnuplot)
+# for i in range(numInit):
+#     ax[1].plot(states.query(f'(lLine == {i}) or (rLine == {i})')['x'], states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', LineWidth=.5, Color='grey')
+ax[1].plot(states.query(f'rLine == {-2}')['x'], states.query(f'rLine == {-2}')['y'], 'k--', LineWidth=1, zorder=1)
+ax[1].plot(states.query(f'lLine == {-1}')['x'], states.query(f'lLine == {-1}')['y'], 'k', LineWidth=1, zorder=1)
+fig.colorbar(con, ax=ax[1], shrink=.6, aspect=10, label='M', ticks=np.arange(1, int(states['M'].max()+10**-10) + 1))
+ax[1].grid()
+ax[1].set_aspect('equal')
+ax[1].set_xlim(0, max(states['x']))
+ax[1].set_ylim(0, max(states['y']))
+ax[1].set_xlabel('x/t')
+ax[1].set_ylabel('y/t')
+
+fig.suptitle(f'M = {Me}, Rc = {throatRad}, nwaves = {numInit}')
+
+fig.savefig('final.png', dpi=1200)
 plt.show()
 plt.close(fig)
