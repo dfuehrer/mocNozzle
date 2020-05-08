@@ -16,10 +16,10 @@ defaultVals = { 'gamma' : 1.4,
                 'Me' : 5,
                 'throatHeight' : 1,
                 'throatRad' : 1 / 2,
-                'numInit' : 64,
+                'numInit' : [64],
                 'numFullBounce' : 1,
                 'show' : True,
-                'name' : 'mocTunnel'
+                'name' : 'mocNozzle'
                 }
 
 class moc:
@@ -33,67 +33,67 @@ class moc:
         self.name = name
         self.show = show
 
-        self.numTotalLen = numInit * (numFullBounce*(numInit + 1) + 1)
 
     def run(self):
-        for num in self.numInit:
-            self.calculateTunnel(num)
-            print(states.__sizeof__())
-            print(states, len(states))
-            self.plot()
+        for num in np.array(self.numInit):
+            self.calculateNozzle(num)
+            print(self.states.__sizeof__())
+            print(self.states, len(self.states))
+            self.plot(num)
         if self.show:
             plt.show()
             plt.close('all')
 
-    def plot(self):
-        extra = states.loc[[0, numInit, states.query(f'(lLine == {-2}) or (rLine == {-2})').index[-1]], :].reset_index(drop=True)
+    def plot(self, numInit):
+        extra = self.states.loc[[0, numInit, self.states.query(f'(lLine == {-2}) or (rLine == {-2})').index[-1]], :].reset_index(drop=True)
         extra.loc[:1, 'M'] = 1
         extra.loc[:1, 'x'] = 0
-        extra.loc[0, 'y'] = throatHeight/2
+        extra.loc[0, 'y'] = self.throatHeight/2
         extra.loc[1, 'y'] = 0
-        extra.loc[2, 'x'] = states['x'].max()
+        extra.loc[2, 'x'] = self.states['x'].max()
         extra.loc[1:2, 'lLine'] = -3
         extra.loc[0, 'rLine'] = -3
         print(extra)
 
-        states = extra.loc[:1, :].append(states.append(extra.loc[2, :], ignore_index=True), ignore_index=True)
+        self.states = extra.loc[:1, :].append(self.states.append(extra.loc[2, :], ignore_index=True), ignore_index=True)
 
         fig, ax = plt.subplots(2, 1)
-        sc = ax[0].scatter(states['x'], states['y'], c=states['M'], alpha=.95, zorder=1, cmap=mpl.cm.gnuplot, marker='.')
-        print(states)
+        sc = ax[0].scatter(self.states['x'], self.states['y'], c=self.states['M'], alpha=.95, zorder=1, cmap=mpl.cm.gnuplot, marker='.')
+        print(self.states)
         for i in range(numInit):
-            ax[0].plot(states.query(f'(lLine == {i}) or (rLine == {i})')['x'], states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', LineWidth=.5, Color='grey', zorder=0)
-        ax[0].plot(states.query(f'rLine == {-2}')['x'], states.query(f'rLine == {-2}')['y'], 'k--', LineWidth=1, zorder=1)
-        ax[0].plot(states.query(f'lLine == {-1}')['x'], states.query(f'lLine == {-1}')['y'], 'k', LineWidth=1, zorder=1)
-        fig.colorbar(sc, ax=ax[0], shrink=.6, aspect=10, label='M', ticks=np.arange(1, int(states['M'].max()+10**-10) + 1))
+            ax[0].plot(self.states.query(f'(lLine == {i}) or (rLine == {i})')['x'], self.states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', LineWidth=.5, Color='grey', zorder=0)
+        ax[0].plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['y'], 'k--', LineWidth=1, zorder=1)
+        ax[0].plot(self.states.query(f'lLine == {-1}')['x'], self.states.query(f'lLine == {-1}')['y'], 'k', LineWidth=1, zorder=1)
+        fig.colorbar(sc, ax=ax[0], shrink=.6, aspect=10, label='M', ticks=np.arange(1, int(self.states['M'].max()+10**-10) + 1))
         ax[0].grid()
         ax[0].set_aspect('equal')
-        ax[0].set_xlim(0, max(states['x']))
-        ax[0].set_ylim(0, max(states['y']))
+        ax[0].set_xlim(0, max(self.states['x']))
+        ax[0].set_ylim(0, max(self.states['y']))
         ax[0].set_xlabel('x/t')
         ax[0].set_ylabel('y/t')
 
 
-        triang = mpl.tri.Triangulation(states['x'], states['y'])
+        triang = mpl.tri.Triangulation(self.states['x'], self.states['y'])
 
-        con = ax[1].tripcolor(triang, states['M'], shading='gouraud', cmap=mpl.cm.gnuplot)
+        con = ax[1].tripcolor(triang, self.states['M'], shading='gouraud', cmap=mpl.cm.gnuplot)
         # for i in range(numInit):
-        #     ax[1].plot(states.query(f'(lLine == {i}) or (rLine == {i})')['x'], states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', LineWidth=.5, Color='grey')
-        ax[1].plot(states.query(f'rLine == {-2}')['x'], states.query(f'rLine == {-2}')['y'], 'k--', LineWidth=1, zorder=1)
-        ax[1].plot(states.query(f'lLine == {-1}')['x'], states.query(f'lLine == {-1}')['y'], 'k', LineWidth=1, zorder=1)
-        fig.colorbar(con, ax=ax[1], shrink=.6, aspect=10, label='M', ticks=np.arange(1, int(states['M'].max()+10**-10) + 1))
+        #     ax[1].plot(self.states.query(f'(lLine == {i}) or (rLine == {i})')['x'], self.states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', LineWidth=.5, Color='grey')
+        ax[1].plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['y'], 'k--', LineWidth=1, zorder=1)
+        ax[1].plot(self.states.query(f'lLine == {-1}')['x'], self.states.query(f'lLine == {-1}')['y'], 'k', LineWidth=1, zorder=1)
+        fig.colorbar(con, ax=ax[1], shrink=.6, aspect=10, label='M', ticks=np.arange(1, int(round(self.states['M'].max())) + 1))
         ax[1].grid()
         ax[1].set_aspect('equal')
-        ax[1].set_xlim(0, max(states['x']))
-        ax[1].set_ylim(0, max(states['y']))
+        ax[1].set_xlim(0, max(self.states['x']))
+        ax[1].set_ylim(0, max(self.states['y']))
         ax[1].set_xlabel('x/t')
         ax[1].set_ylabel('y/t')
 
-        fig.suptitle(f'M = {Me}, Rc = {throatRad}, nwaves = {numInit}')
+        fig.suptitle(f'M = {self.Me}, Rc = {self.throatRad}, nwaves = {numInit}')
 
         fig.savefig('final.png', dpi=1200)
 
-    def calculateTunnel(self, numInit):
+    def calculateNozzle(self, numInit):
+        self.numTotalLen = numInit * (self.numFullBounce*(numInit + 1) + 1)
         self.calcFirstPoint(numInit)
         # initialize the state
         delta = (np.arange(numInit) * (self.thetaE - self.thetaS) / (numInit-1) + self.thetaS).tolist() + [0] * (self.numTotalLen - numInit)
@@ -127,7 +127,7 @@ class moc:
         # plt.close(fig)
         
         i = numInit
-        for bounce in range(numFullBounce):
+        for bounce in range(self.numFullBounce):
             for curLine in range(numInit):
                 i = self.calcCurve(numInit, i, curLine)
 
@@ -227,8 +227,8 @@ def parse(clargs=sys.argv[1:]):
     parser.add_argument('--throatRad',     '-r', default=defaultVals['throatRad'],     type=float,          help='radius of the throat (as a fraction of the throat height')
     parser.add_argument('--throatHeight',  '-H', default=defaultVals['throatHeight'],  type=float,          help='throat height (leave as 1)')
     parser.add_argument('--gamma',         '-g', default=defaultVals['gamma'],         type=float,          help='ratio of specific heats of the gas')
-    parser.add_argument('--Mach',          '-M', default=defaultVals['Me'],            type=float,          help='design Mach number for the wind tunnel')
-    parser.add_argument('--numInit',       '-i', default=defaultVals['numInit'],       type=int, nargs='+', help='list of number of initial points to make up the circular throat area. ex: 8,16,32,64')
+    parser.add_argument('--Mach',          '-M', default=defaultVals['Me'],            type=float,          help='design Mach number for the wind nozzle')
+    parser.add_argument('--numInit',       '-i', default=defaultVals['numInit'],       type=int, nargs='+', help='list of number of initial points to make up the circular throat area. ex: 8 16 32 64')
     parser.add_argument('--numFullBounce', '-b', default=defaultVals['numFullBounce'], type=int,            help='number of times the characteristic curves should bounce off the centerline (not working, dont use)')
     parser.add_argument('--name',          '-n', default=defaultVals['name'],          type=str,            help='name of the run (for image output)')
     parser.add_argument('--show',          '-s', default=defaultVals['show'],          action='store_true', help='show interactive plots at the end')
@@ -239,8 +239,8 @@ def parse(clargs=sys.argv[1:]):
 
 def main():
     args = parse()
-    tunnel = moc(throatRad=args.throatRad, throatHeight=args.throatHeight, gamma=args.gamma, Me=args.Mach, numInit=args.numInit, numFullBounce=args.numFullBounce, name=args.name, show=args.show)
-    tunnel.run()
+    nozzle = moc(throatRad=args.throatRad, throatHeight=args.throatHeight, gamma=args.gamma, Me=args.Mach, numInit=args.numInit, numFullBounce=args.numFullBounce, name=args.name, show=args.show)
+    nozzle.run()
 
 if __name__ == '__main__':
     main()
