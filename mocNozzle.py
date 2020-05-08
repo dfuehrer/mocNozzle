@@ -12,7 +12,7 @@ r2d = 180 / np.pi
 Me = 5
 throatHeight = 1
 throatRad = throatHeight / 2
-numInit = 64
+numInit = 256
 numFullBounce = 1
 
 numTotalLen = numInit * (numFullBounce*(numInit + 1) + 1)
@@ -21,13 +21,14 @@ nuE = gas.prandtlMeyerAng(Me, gamma)
 thetaE = nuE / 2
 dxE = throatRad*np.sin(d2r*thetaE)
 dyE = throatRad*(1 - np.cos(d2r*thetaE)) + throatHeight/2
-# print(dxE, dyE)
+print(dxE, dyE)
 ntS = lambda thetaS: r2d*np.arcsin((dxE - (throatHeight/2 + dyE) * np.sqrt(gas.prandtlMeyerM(thetaS)**2 -1)) / throatRad)
-thetaS = thetaE / numInit
+# thetaS = thetaE / numInit
 newThetaS = abs(np.arcsin(dxE/throatRad * (.5 - dyE/throatHeight))*r2d)
+thetaS = newThetaS/2
 # newThetaS = ntS(thetaS)
 tmp = ntS(newThetaS)
-# print(thetaE, thetaS, newThetaS)
+print(thetaE, thetaS, newThetaS)
 tS = thetaS
 while (newThetaS < tS) or (abs(newThetaS - tS) > .01):
     old = tS
@@ -37,7 +38,7 @@ while (newThetaS < tS) or (abs(newThetaS - tS) > .01):
     newThetaS = tS - (tmp*(tS-old)) / (tmp - tmp2)
     if newThetaS < 0:   newThetaS = tS/2
     if not np.isfinite(newThetaS):  newThetaS = tS
-    # print(tS, newThetaS, tmp, tmp2)
+    print(tS, newThetaS, tmp, tmp2)
 thetaS = newThetaS
 delta = (np.arange(numInit) * (thetaE - thetaS) / (numInit-1) + thetaS).tolist() + [0] * (numTotalLen - numInit)
 # nu at the throat is 0 because Mt = 1
@@ -70,7 +71,6 @@ print(states['R'][numInit-1])
 # plt.close(fig)
 
 
-######## Start of copying from last time ####### 
 # remember the goal is to go untill the wall makes the mach angle inf weak i guess
 # also remember we start at the top going right and last time was opposite
 
