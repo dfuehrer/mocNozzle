@@ -2,6 +2,7 @@
 import numpy as np
 import scipy.optimize as opt
 import time
+import warnings
 # might just move opt into the prandtlMeyerM cause it might be the only place its used but that would also slow things down in the middle instead of at the beginning
 r2d = 180 / np.pi
 d2r = np.pi / 180
@@ -22,7 +23,9 @@ def prandtlMeyerM(nu, gamma=1.4):
     # as far as i can tell it works fairly well
     # turn M into an array so PMM doesnt die if its a list
     nu = np.array(nu)
-    M = opt.fsolve(lambda M: prandtlMeyerAng(M) - nu, PMM(nu, gamma))
+    with warnings.catch_warnings():
+        warnings.simplefilter('ignore')
+        M = opt.fsolve(lambda M: prandtlMeyerAng(M) - nu, PMM(nu, gamma))
     return M if len(M) > 1 else M[0]    # this should be fine cause i think fsolve always outputs an array
 
 def PMM(nu, gamma=1.4):
