@@ -54,3 +54,23 @@ def dbmBeta(M, delta, gamma=1.4):
 
 def dbmDelta(M, Beta, gamma=1.4):
     return np.arctan2(M**2 * np.sin(d2r*2*Beta) - 2/np.tan(d2r*Beta), M**2 * (gamma + np.cos(d2r*2*Beta)) + 2)*r2d
+
+def p2Byp1(M, gamma=1.4):
+    return (2*gamma * M**2 - (gamma - 1)) / (gamma + 1)
+
+def pByp0(M, gamma=1.4):
+    return (1 + (gamma-1)/2 * M**2) ** (-gamma / (gamma - 1))
+
+def normShockM2(M1, gamma=1.4):
+    return np.sqrt(((gamma - 1) * M1**2 + 2) / (2*gamma * M1**2 - (gamma - 1)))
+
+def obliqueShock(M1, p1, delta, gamma=1.4):
+    # calculate Beta from delta and M1, then normal component of M1 from beta
+    Beta = dbmBeta(M1, delta, gamma)[0]
+    M1n = M1 * np.sin(d2r*Beta)
+    # claculate M2 from M1n, Beta, and delta
+    M2 = normShockM2(M1n, gamma) / np.sin(d2r*(Beta - delta))
+    # calculate p2 from M1n and p1
+    p2 = p2Byp1(M1n, gamma) * p1
+    return M2, p2
+
