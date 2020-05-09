@@ -2,8 +2,6 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import matplotlib as mpl
-import scipy.integrate
-# import seaborn as sns;  sns.set()
 import gasdynamics as gas
 import time
 import sys
@@ -24,14 +22,15 @@ defaultVals = { 'gamma' : 1.4,
                 'name' : 'mocNozzle',
                 'outputDir' : './',
                 # TODO make this a reasonable number of things to plot
-                'convergeNums' : [8, 32],  #(2 ** np.arange(3, 9)).tolist(),
-                'plotConvergence' : False,
-                'plotCenterline'  : False,
+                'convergeNums' : (2 ** np.arange(3, 9)).tolist(),
+                'plotConvergence' : True,
+                'plotCenterline'  : True,
+                'calcOperation'   : True,
                 'gridOverContour' : False
                 }
 
 class moc:
-    def __init__(self, throatRad=defaultVals['throatRad'], throatHeight=defaultVals['throatHeight'], gamma=defaultVals['gamma'], Me=defaultVals['Me'], numInit=defaultVals['numInit'], numFullBounce=defaultVals['numFullBounce'], name=defaultVals['name'], outputDir=defaultVals['outputDir'], show=defaultVals['show'], gridOverContour=defaultVals['gridOverContour'], plotConvergence=defaultVals['plotConvergence'], plotCenterline=defaultVals['plotCenterline']):
+    def __init__(self, throatRad=defaultVals['throatRad'], throatHeight=defaultVals['throatHeight'], gamma=defaultVals['gamma'], Me=defaultVals['Me'], numInit=defaultVals['numInit'], numFullBounce=defaultVals['numFullBounce'], name=defaultVals['name'], outputDir=defaultVals['outputDir'], show=defaultVals['show'], gridOverContour=defaultVals['gridOverContour'], plotConvergence=defaultVals['plotConvergence'], plotCenterline=defaultVals['plotCenterline'], calcOperation=defaultVals['calcOperation']):
         self.gamma = gamma
         self.Me = Me
         self.throatHeight = throatHeight
@@ -44,16 +43,21 @@ class moc:
         self.gridOverContour = gridOverContour
         self.plotConvergence = plotConvergence
         self.plotCenterline  = plotCenterline
-        self.convergeNums = defaultVals['convergeNums'] if self.plotConvergence else []
+        self.calcOperation   = calcOperation
+        self.convergeNums    = defaultVals['convergeNums'] if self.plotConvergence else []
 
         self.theoAreaRat = gas.areaRatio(self.Me, self.gamma)
 
 
     def run(self):
+        prt = time.time()
         self.ARat = pd.DataFrame({'num':np.unique(self.convergeNums + self.numInit)})
         ind = 0
         for num in self.ARat['num']:
+            ptime = time.time()
             self.calculateNozzle(num)
+            ntime = time.time()
+            print(num, 'point nozzle calc took :', ntime - ptime)
             # print(self.states.__sizeof__())
             # print(self.states, len(self.states))
             # self.ARat.loc[self.ARat.query(f'num == {num}').index, 'rat'] = self.states['y'].max() * 2
@@ -61,16 +65,27 @@ class moc:
             self.ARat.loc[ind, 'rat'] = self.states['y'].max() * 2
             ind += 1
             if num in self.numInit:
+                print(num, 'point nozzle calc took :', ntime - ptime)
+                ppt = time.time()
                 self.plot(num)
+                print('plot time:', time.time() - ppt)
                 self.states = self.states.assign(pRat = lambda df: (1 + (self.gamma-1)/2 * df.M**2) ** (-self.gamma/(self.gamma-1)),
                                                  TRat = lambda df: (1 + (self.gamma-1)/2 * df.M**2) ** -1)
-                self.calcOperatingVals()
+                if self.calcOperation:
+                    pcot = time.time()
+                    self.calcOperatingVals()
+                    print('calcOperatingVals time: ', time.time() - pcot)
                 if self.plotCenterline:
+                    ppct = time.time()
                     self.plotCenter()
+                    print('calcOperatingVals time: ', time.time() - ppct)
 
         if self.plotConvergence:
-            self.ARat['err'] = self.ARat['rat'] - self.theoAreaRat
+            ppCt = time.time()
+            self.ARat['err'] = abs(1 - self.ARat['rat'] / self.theoAreaRat)
             self.plotConverge()
+            print('calcOperatingVals time: ', time.time() - ppCt)
+        print('Total time: ', time.time() - prt, ' [s]')
         if self.show:
             plt.show()
             plt.close('all')
@@ -81,10 +96,12 @@ class moc:
 
         fig, ax = plt.subplots(2, 1, figsize=(12, 6))
         fig.subplots_adjust(left=0.1, right=1, bottom=0, top=1, hspace=0)
-        sc = ax[0].scatter(self.states['x'], self.states['y'], c=self.states['M'], alpha=.95, zorder=1, cmap=mpl.cm.gnuplot, marker='.')
-        # print(self.states)
+        # TODO try plotting without alpha and see if its faster
+        sc = ax[0].scatter(self.states['x'], self.states['y'], c=self.states['M'], alpha=.95, zorder=1, cmap=mpl.cm.gnuplot, marker='.', linewidth=1)
+        pmlt = time.time()
         for i in range(numInit):
             ax[0].plot(self.states.query(f'(lLine == {i}) or (rLine == {i})')['x'], self.states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', LineWidth=.5, Color='grey', zorder=0)
+        print('gen grid lines time:', time.time() - pmlt)
         ax[0].plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['y'], 'k--', LineWidth=1, zorder=1)
         ax[0].plot(self.states.query(f'lLine == {-1}')['x'], self.states.query(f'lLine == {-1}')['y'], 'k', LineWidth=1, zorder=1)
         fig.colorbar(sc, ax=ax[0], shrink=.6, aspect=10, label='M', ticks=np.arange(1, int(self.states['M'].max()+10**-10) + 1))
@@ -114,7 +131,9 @@ class moc:
 
         fig.suptitle(f'M = {self.Me}, Rc = {self.throatRad}, nwaves = {numInit}')
 
+        psft = time.time()
         fig.savefig(f'{self.name}_nozzle_M{self.Me}_num{numInit}.png', dpi=1200)
+        print('savefig time:', time.time() - pmlt)
 
     def plotConverge(self):
         fig, ax = plt.subplots()
@@ -122,12 +141,12 @@ class moc:
         ax.set_xlabel('Number of Initial points')
         ax.set_ylabel('Relative Error')
         ax.set_xlim([0, int(self.ARat['num'].max() / 10 + 1) * 10])
-        ax.set_ylim([0, int(self.ARat['err'].max() / 10 + 1) * 10])
+        ax.set_ylim([0, int(self.ARat['err'].max() * 2 + 1) / 2])
         ax.grid()
         fig.suptitle('Relative Error in Area Ratio vs Number of Initial Points')
         fig.savefig(self.name + '_converge.png')
-        plt.show()
-        plt.close(fig)
+        # plt.show()
+        # plt.close(fig)
 
     def plotCenter(self):
         fig, ax1 = plt.subplots()
@@ -153,12 +172,10 @@ class moc:
         fig.suptitle('Mach and Total Pressure and Temperature Ratios vs X')
         fig.tight_layout()
         fig.savefig(self.name + '_MpT.png')
-        plt.show()
-        plt.close(fig)
+        # plt.show()
+        # plt.close(fig)
 
-    def calculateNozzle(self, numInit):
-        self.numTotalLen = numInit * (self.numFullBounce*(numInit + 1) + 1)
-        self.calcFirstPoint(numInit)
+    def calcInit(self, numInit):
         # initialize the state
         delta = (np.arange(numInit) * (self.thetaE - self.thetaS) / (numInit-1) + self.thetaS).tolist() + [0] * (self.numTotalLen - numInit)
         # nu at the throat is 0 because Mt = 1
@@ -188,11 +205,17 @@ class moc:
         # ax.plot([0, throatRad], [1, 1], '.')
         # fig.savefig('init.png')
         # plt.close(fig)
+
+    def calculateNozzle(self, numInit):
+        self.numTotalLen = numInit * (self.numFullBounce*(numInit + 1) + 1)
+        i, cur = self.calcFirstPoint(numInit)
+        # self.calcInit(numInit)
         
-        i = numInit
+        # i = numInit
         for bounce in range(self.numFullBounce):
-            for curLine in range(numInit):
+            for curLine in range(cur, numInit):
                 i = self.calcCurve(numInit, i, curLine)
+            cur = 0
 
     def calcCurve(self, numInit, i, curLine):
         # calc centerline bounce
@@ -264,7 +287,7 @@ class moc:
         minT0 = 55 / self.states['TRat'].iloc[-1]
         print(f'Minimum total Temperature: {minT0:.4f} K')
         minp0 = .1 / Pcr3
-        print(f'Minimum total pressure: {minp0:.4f} [Pa]')
+        print(f'Minimum total pressure: {minp0:.4f} [psia]')
         maxp00 = 500 * 6894.76
         minp0 *= 6894.76
         p00 = np.linspace(minp0, maxp00, 1000)
@@ -275,15 +298,15 @@ class moc:
         areaRat = self.states['y'].max() * 2
         # mdot = A / areaRat * p00 * np.sqrt(self.gamma / defaultVals['R'] / T0) * (2/(self.gamma+1)) ** ((self.gamma+1)/2/(self.gamma-1))
         mdot = A / areaRat * p00 * np.sqrt(self.gamma / defaultVals['R'] / minT0) * (2/(self.gamma+1)) ** ((self.gamma+1)/2/(self.gamma-1))
-        fig, ax = plt.subplots()
-        ax.plot(p00, mdot)
-        ax.set_xlabel('Operating Total Pressure')
-        ax.set_ylabel('Mass Flow Rate')
-        ax.grid()
-        fig.suptitle('Mass Flow Rate vs Operating Total Pressure')
-        fig.savefig(self.name + '_mdot.png')
+        mfig, mAx = plt.subplots()
+        mAx.plot(p00, mdot)
+        mAx.set_xlabel('Operating Total Pressure [Pa]')
+        mAx.set_ylabel('Mass Flow Rate [kg/s]')
+        mAx.grid()
+        mfig.suptitle('Mass Flow Rate vs Operating Total Pressure')
+        mfig.savefig(self.name + '_mdot.png')
         # plt.show()
-        plt.close(fig)
+        # plt.close(mfig)
 
         T00 = 300
         V = 40
@@ -291,31 +314,31 @@ class moc:
         t = 2*self.gamma / (c(p00)*(self.gamma-1)) * (minp0**((1-self.gamma)/2/self.gamma) - p00**((1-self.gamma)/2/self.gamma))
         # t = np.arange(0, 71)
         # p0 = ((self.gamma-1)*c(maxp00)*t / (2*self.gamma) + maxp00**((1-self.gamma)/2/self.gamma)) ** (2*self.gamma/(1-self.gamma))
-        fig, ax = plt.subplots()
-        ax.plot(p00, t)
+        tfig, tax = plt.subplots()
+        tax.plot(p00, t)
         # ax.plot(t, p0)
-        ax.set_xlabel('Operating Total Pressure')
-        ax.set_ylabel('Total Operation Time')
-        ax.grid()
-        fig.suptitle('Total Opteration Time vs Operating Total Pressure')
-        fig.savefig(self.name + '_time.png')
+        tax.set_xlabel('Operating Total Pressure [Pa]')
+        tax.set_ylabel('Total Operation Time [s]')
+        tax.grid()
+        tfig.suptitle('Total Opteration Time vs Operating Total Pressure')
+        tfig.savefig(self.name + '_time.png')
         # plt.show()
-        plt.close(fig)
+        # plt.close(tfig)
 
         T = minT0 * self.states.iloc[-1]['TRat']
         mu = 1.716e-5 * (T / 273.15)**1.5 * (273.15+110.4) / (T + 110.4)
         rho = p00 * self.states.iloc[-1]['pRat'] / defaultVals['R'] / T
         U = np.sqrt(self.gamma * defaultVals['R'] * T) * self.states.iloc[-1]['M']
         Reprime = rho * U / mu
-        fig, ax = plt.subplots()
-        ax.plot(p00, Reprime)
-        ax.set_xlabel('Operating Total Pressure')
-        ax.set_ylabel('Free-Stream Unit Reynolds Number')
-        ax.grid()
-        fig.suptitle('Unit Reynolds Number vs Operating Total Pressure')
-        fig.savefig(self.name + '_Re.png')
+        Refig, Reax = plt.subplots()
+        Reax.plot(p00, Reprime)
+        Reax.set_xlabel('Operating Total Pressure [Pa]')
+        Reax.set_ylabel('Free-Stream Unit Reynolds Number')
+        Reax.grid()
+        Refig.suptitle('Unit Reynolds Number vs Operating Total Pressure')
+        Refig.savefig(self.name + '_Re.png')
         # plt.show()
-        plt.close(fig)
+        # plt.close(Refig)
 
         tH = eH / areaRat
         nl = tH * self.states['x'].max()
@@ -345,27 +368,44 @@ class moc:
         # TODO figure out if this is actually what i want for the max angle
         self.thetaE = nuE / 2
         dxE = self.throatRad*np.sin(d2r*self.thetaE)
-        dyE = self.throatRad*(1 - np.cos(d2r*self.thetaE)) + self.throatHeight/2
-        # print(dxE, dyE)
-        ntS = lambda thetaS: r2d*np.arcsin((dxE - (self.throatHeight/2 + dyE) * np.sqrt(gas.prandtlMeyerM(thetaS)**2 -1)) / self.throatRad)
-        # thetaS = self.thetaE / numInit
-        newThetaS = abs(np.arcsin(dxE/self.throatRad * (.5 - dyE/self.throatHeight))*r2d)
-        thetaS = newThetaS / 2  # this is kinda arbitrary, its just hopefully a reasonable value to pick
-        # newThetaS = ntS(thetaS)
-        tmp = ntS(newThetaS)
-        # print(self.thetaE, thetaS, newThetaS)
-        tS = thetaS
-        while (newThetaS < tS) or (abs(newThetaS - tS) > .01):
-            old = tS
-            tS = newThetaS
-            tmp2 = tmp
-            tmp = ntS(tS) - tS
-            newThetaS = tS - (tmp*(tS-old)) / (tmp - tmp2)
-            if newThetaS < 0:   newThetaS = tS/2
-            if not np.isfinite(newThetaS):  newThetaS = tS
-            # print(tS, newThetaS, tmp, tmp2)
+
+
+        def firstPntErr(ts):
+            self.thetaS = ts
+            self.calcInit(numInit)
+            i = self.calcCurve(numInit, numInit, 0)
+            i = self.calcCurve(numInit, i, 1)
+            # print(self.states.loc[:numInit*3+1, ['x', 'y', 'M', 'delta', 'nu', 'mu']])
+            x1 = self.states.loc[3*numInit+1, 'x']
+            # print('x= ', self.states.loc[2*numInit, 'x'], x1, dxE, (self.states.loc[2*numInit, 'x'] - x1) / (x1 - dxE) - .5)
+            return (self.states.loc[2*numInit, 'x'] - x1) / (x1 - dxE) + .45, i
+        
+
+        ptime = time.time()
+        tol = .05
+        newThetaS = self.thetaE / numInit/2
+        err, i = firstPntErr(newThetaS)
+        if abs(err) > tol:
+            tS = self.thetaE / numInit * 2/3
+            print(tS, newThetaS)
+            tmp = firstPntErr(tS)[0]
+            while abs(err) > tol:
+                old = tS
+                tS = newThetaS
+                tmp2 = tmp
+                tmp = err
+                newThetaS = tS - (tmp*(tS-old)) / (tmp - tmp2)
+                if newThetaS < 0:   newThetaS = tS/2
+                if not np.isfinite(newThetaS):  newThetaS = tS
+                err, i = firstPntErr(newThetaS)
+                print(tS, newThetaS, err, tmp)
+        print('first point time: ', time.time() - ptime)
         self.thetaS = newThetaS
-        return self.thetaS
+        # print(self.thetaS)
+
+        
+
+        return i, 2
 
     def calcExtraPoints(self, numInit):
         # returns the starteing index of the points that should go at the end of states
@@ -385,18 +425,19 @@ def parse(clargs=sys.argv[1:]):
     storeTF = lambda choice: 'store_false' if defaultVals[choice] else 'store_true'
     # TODO write a real help message so that its usable even without other instructions
     parser = ap.ArgumentParser()
-    parser.add_argument('--throatRad',       '-r', default=defaultVals['throatRad'],     type=float,          help='radius of the throat (as a fraction of the throat height')
-    parser.add_argument('--throatHeight',    '-H', default=defaultVals['throatHeight'],  type=float,          help='throat height (leave as 1)')
-    parser.add_argument('--gamma',           '-g', default=defaultVals['gamma'],         type=float,          help='ratio of specific heats of the gas')
-    parser.add_argument('--Mach',            '-M', default=defaultVals['Me'],            type=float,          help='design Mach number for the wind nozzle')
-    parser.add_argument('--numInit',         '-i', default=defaultVals['numInit'],       type=int, nargs='+', help='list of number of initial points to make up the circular throat area. ex: 8 16 32 64')
-    parser.add_argument('--numFullBounce',   '-b', default=defaultVals['numFullBounce'], type=int,            help='number of times the characteristic curves should bounce off the centerline (not working, dont use)')
-    parser.add_argument('--name',            '-n', default=defaultVals['name'],          type=str,            help='name of the run (for image output)')
-    parser.add_argument('--outputDir',       '-o', default=defaultVals['outputDir'],     type=str,            help='name of the directory to output the plot images to')
-    parser.add_argument('--show',            '-s', action=storeTF('show'),                                    help='show interactive plots at the end')
-    parser.add_argument('--gridOverContour', '-G', action=storeTF('gridOverContour'),                         help='show characteristic curves over contour plot')
-    parser.add_argument('--plotConvergence', '-C', action=storeTF('plotConvergence'),                         help='plot the convergence WRT number of initial waves')
-    parser.add_argument('--plotCenterline',  '-c', action=storeTF('plotCenterline'),                          help='plot the Mach and total pressure and temperature ratios on the centerline')
+    parser.add_argument('--throatRad',         '-r', default=defaultVals['throatRad'],     type=float,          help='radius of the throat (as a fraction of the throat height')
+    parser.add_argument('--throatHeight',      '-H', default=defaultVals['throatHeight'],  type=float,          help='throat height (leave as 1)')
+    parser.add_argument('--gamma',             '-g', default=defaultVals['gamma'],         type=float,          help='ratio of specific heats of the gas')
+    parser.add_argument('--Mach',              '-M', default=defaultVals['Me'],            type=float,          help='design Mach number for the wind nozzle')
+    parser.add_argument('--numInit',           '-i', default=defaultVals['numInit'],       type=int, nargs='+', help='list of number of initial points to make up the circular throat area. ex: 8 16 32 64')
+    parser.add_argument('--numFullBounce',     '-b', default=defaultVals['numFullBounce'], type=int,            help='number of times the characteristic curves should bounce off the centerline (not implemented, do not use)')
+    parser.add_argument('--name',              '-n', default=defaultVals['name'],          type=str,            help='name of the run (for image output)')
+    parser.add_argument('--outputDir',         '-o', default=defaultVals['outputDir'],     type=str,            help='name of the directory to output the plot images to')
+    parser.add_argument('--noshow',            '-s', action=storeTF('show'),                                    help='toggle off showing interactive plots at the end')
+    parser.add_argument('--gridOverContour',   '-G', action=storeTF('gridOverContour'),                         help='show characteristic curves over contour plot')
+    parser.add_argument('--noplotConvergence', '-C', action=storeTF('plotConvergence'),                         help='toggle off plotting the convergence WRT number of initial waves')
+    parser.add_argument('--noplotCenterline',  '-c', action=storeTF('plotCenterline'),                          help='toggle off plotting Mach and total pressure and temperature ratios on the centerline')
+    parser.add_argument('--nocalcOperation',   '-O', action=storeTF('calcOperation'),                           help='toggle off calculation the answers to the opterations questions for part 3')
 
     args = parser.parse_args()
     # TODO actually do some error checking on the values inputted
@@ -404,7 +445,7 @@ def parse(clargs=sys.argv[1:]):
 
 def main():
     args = parse()
-    nozzle = moc(throatRad=args.throatRad, throatHeight=args.throatHeight, gamma=args.gamma, Me=args.Mach, numInit=args.numInit, numFullBounce=args.numFullBounce, name=args.name, outputDir=args.outputDir, show=args.show, gridOverContour=args.gridOverContour, plotConvergence=args.plotConvergence, plotCenterline=args.plotCenterline)
+    nozzle = moc(throatRad=args.throatRad, throatHeight=args.throatHeight, gamma=args.gamma, Me=args.Mach, numInit=args.numInit, numFullBounce=args.numFullBounce, name=args.name, outputDir=args.outputDir, show=args.noshow, gridOverContour=args.gridOverContour, plotConvergence=args.noplotConvergence, plotCenterline=args.noplotCenterline, calcOperation=args.nocalcOperation)
     nozzle.run()
 
 if __name__ == '__main__':
