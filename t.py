@@ -31,7 +31,7 @@ defaultVals = { 'gamma' : 1.4,
                 }
 
 class moc:
-    def __init__(self, throatRad=defaultVals['throatRad'], throatHeight=defaultVals['throatHeight'], gamma=defaultVals['gamma'], Me=defaultVals['Me'], numInit=defaultVals['numInit'], numFullBounce=defaultVals['numFullBounce'], name=defaultVals['name'], name=defaultVals['outputDir'], show=defaultVals['show'], gridOverContour=defaultVals['gridOverContour'], plotConvergence=defaultVals['plotConvergence'], plotCenterline=defaultVals['plotCenterline']):
+    def __init__(self, throatRad=defaultVals['throatRad'], throatHeight=defaultVals['throatHeight'], gamma=defaultVals['gamma'], Me=defaultVals['Me'], numInit=defaultVals['numInit'], numFullBounce=defaultVals['numFullBounce'], name=defaultVals['name'], outputDir=defaultVals['outputDir'], show=defaultVals['show'], gridOverContour=defaultVals['gridOverContour'], plotConvergence=defaultVals['plotConvergence'], plotCenterline=defaultVals['plotCenterline']):
         self.gamma = gamma
         self.Me = Me
         self.throatHeight = throatHeight
@@ -82,7 +82,7 @@ class moc:
         fig, ax = plt.subplots(2, 1, figsize=(12, 6))
         fig.subplots_adjust(left=0.1, right=1, bottom=0, top=1, hspace=0)
         sc = ax[0].scatter(self.states['x'], self.states['y'], c=self.states['M'], alpha=.95, zorder=1, cmap=mpl.cm.gnuplot, marker='.')
-        print(self.states)
+        # print(self.states)
         for i in range(numInit):
             ax[0].plot(self.states.query(f'(lLine == {i}) or (rLine == {i})')['x'], self.states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', LineWidth=.5, Color='grey', zorder=0)
         ax[0].plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['y'], 'k--', LineWidth=1, zorder=1)
@@ -258,13 +258,13 @@ class moc:
 
     def calcOperatingVals(self):
         tl = self.states['x'].max() - self.states.query('(rLine == -2) and (lLine != -3)')['x'].iloc[-1]
-        print(f'Triangle length: {tl:.4g} times the throat height')
+        print(f'Triangle length: {tl:.4f} times the throat height')
         Pcr3 = self.states.iloc[-1].pRat
         print(f'Pcr3 = {Pcr3:.4g}')
         minT0 = 55 / self.states['TRat'].iloc[-1]
-        print(f'Minimum total Temperature: {minT0:.4g} K')
+        print(f'Minimum total Temperature: {minT0:.4f} K')
         minp0 = .1 / Pcr3
-        print(f'Minimum total pressure: {minp0:.4g} [Pa]')
+        print(f'Minimum total pressure: {minp0:.4f} [Pa]')
         maxp00 = 500 * 6894.76
         minp0 *= 6894.76
         p00 = np.linspace(minp0, maxp00, 1000)
@@ -319,16 +319,21 @@ class moc:
 
         tH = eH / areaRat
         nl = tH * self.states['x'].max()
-        print(f'Nozzle length is {nl} [m]')
+        print(f'Nozzle length is {nl:.4f} [m]')
 
         lowArea = gas.areaRatio(0.05, self.gamma) * tH*w
         print(f'The area required for M <= 0.05 is {lowArea:.4g} [m^2] ({lowArea*1000000:.4g} [mm^2])')
 
         ang = 7
         wLen = .5
+        wWidth = .2
         topLen = wLen / np.cos(d2r*ang)
         topVect = np.array([-np.sin(d2r*ang), np.cos(d2r*ang)])
         botVect = np.array([0, -1])
+        topP = gas.obliqueShock(self.states['M'].iloc[-1], maxp00 * self.states['pRat'].iloc[-1], ang, gamma=self.gamma)[1]
+        botP = gas.obliqueShock(self.states['M'].iloc[-1], maxp00 * self.states['pRat'].iloc[-1], 0,   gamma=self.gamma)[1]
+        F = -wWidth * (topLen * topP * topVect + wLen * botP * botVect)
+        print(f'The force on the wedge is {abs(F[0]):.4f} [N] to the {"right" if F[0] >= 0 else "left"} and {abs(F[1]):.4f} [N] {"upward" if F[1] >= 0 else "downward"}')
 
 
     def calcFirstPoint(self, numInit):
