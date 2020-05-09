@@ -43,4 +43,14 @@ def PMM(nu, gamma=1.4):
     M =  np.sqrt((a*(1 - a/(a + c*gamma*np.tan(d2r * nu))))**2 + 1)
     return M + gamma/5.6 * (1 - np.exp(-2*(M-1)) - (2*M/a) / (1 + np.exp(-a/2*(M-a))))
 
+def areaRatio(M, gamma=1.4):
+    return (2/(gamma+1) * (1 + (gamma-1)/2 * M**2))**((gamma+1)/2/(gamma-1)) / M
 
+def dbmBeta(M, delta, gamma=1.4):
+    betaEq = [1, -((M**2 + 2) / M**2 + gamma * np.sin(d2r*delta)**2), ((2*M**2 + 1) / M**4 + ((gamma+1)**2 / 4 + (gamma-1) / M**2) * np.sin(d2r*delta)**2), -np.cos(d2r*delta)**2 / M**4]
+    Bs = np.roots(betaEq)
+    B = np.arcsin(np.sqrt(Bs[Bs > min(Bs)]))*r2d
+    return min(B), max(B)
+
+def dbmDelta(M, Beta, gamma=1.4):
+    return np.arctan2(M**2 * np.sin(d2r*2*Beta) - 2/np.tan(d2r*Beta), M**2 * (gamma + np.cos(d2r*2*Beta)) + 2)*r2d
