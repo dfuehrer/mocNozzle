@@ -17,7 +17,7 @@ defaultVals = { 'gamma' : 1.4,
                 'Me' : 5,
                 'throatHeight' : 1,
                 'throatRad' : 1 / 2,
-                'numInit' : [64],
+                'numInit' : [256],
                 'numFullBounce' : 1,
                 'save' : False,
                 'show' : True,
@@ -420,14 +420,14 @@ def parse(clargs=sys.argv[1:]):
     storeTF = lambda choice: 'store_false' if defaultVals[choice] else 'store_true'
     # TODO write a real help message so that its usable even without other instructions
     parser = ap.ArgumentParser()
-    parser.add_argument('--throatRad',         '-r', default=defaultVals['throatRad'],     type=float,          help='radius of the throat (as a fraction of the throat height')
-    parser.add_argument('--throatHeight',      '-H', default=defaultVals['throatHeight'],  type=float,          help='throat height (leave as 1)')
-    parser.add_argument('--gamma',             '-g', default=defaultVals['gamma'],         type=float,          help='ratio of specific heats of the gas')
-    parser.add_argument('--Mach',              '-M', default=defaultVals['Me'],            type=float,          help='design Mach number for the wind nozzle')
-    parser.add_argument('--numInit',           '-i', default=defaultVals['numInit'],       type=int, nargs='+', help='list of number of initial points to make up the circular throat area. ex: 8 16 32 64')
-    parser.add_argument('--numFullBounce',     '-b', default=defaultVals['numFullBounce'], type=int,            help='number of times the characteristic curves should bounce off the centerline (not implemented, do not use)')
-    parser.add_argument('--name',              '-n', default=defaultVals['name'],          type=str,            help='name of the run (for image output)')
-    parser.add_argument('--outputDir',         '-o', default=defaultVals['outputDir'],     type=str,            help='name of the directory to output the plot images to')
+    parser.add_argument('--throatRad',         '-r', default=defaultVals['throatRad'],     type=float,          help='set radius of the throat (as a fraction of the throat height')
+    parser.add_argument('--throatHeight',      '-H', default=defaultVals['throatHeight'],  type=float,          help='set throat height (leave as 1)')
+    parser.add_argument('--gamma',             '-g', default=defaultVals['gamma'],         type=float,          help='set ratio of specific heats of the gas')
+    parser.add_argument('--Mach',              '-M', default=defaultVals['Me'],            type=float,          help='set design Mach number for the wind nozzle')
+    parser.add_argument('--numInit',           '-i', default=defaultVals['numInit'],       type=int, nargs='+', help='set list of number of initial points to make up the circular throat area. ex: 8 16 32 64')
+    parser.add_argument('--numFullBounce',     '-b', default=defaultVals['numFullBounce'], type=int,            help='set number of times the characteristic curves should bounce off the centerline (not implemented, do not use)')
+    parser.add_argument('--name',              '-n', default=defaultVals['name'],          type=str,            help='set name of the run (for image output)')
+    parser.add_argument('--outputDir',         '-o', default=defaultVals['outputDir'],     type=str,            help='specify name of the directory to output the plot images to')
     parser.add_argument('--save',              '-S', action=storeTF('save'),                                    help='save the data to an pickle file (h5 requires another dependency)')
     parser.add_argument('--noshow',            '-s', action=storeTF('show'),                                    help='toggle off showing interactive plots at the end')
     parser.add_argument('--gridOverContour',   '-G', action=storeTF('gridOverContour'),                         help='show characteristic curves over contour plot')
