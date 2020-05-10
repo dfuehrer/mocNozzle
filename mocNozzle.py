@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 import matplotlib as mpl
 import gasdynamics as gas
 import time
-import sys
+import sys, os
 import argparse as ap
 
 d2r = np.pi / 180
@@ -40,6 +40,7 @@ class moc:
         self.numFullBounce = numFullBounce
         self.name = name
         self.outputDir = outputDir
+        self.path = os.path.join(outputDir, self.name)
         self.show = show
         self.gridOverContour = gridOverContour
         self.plotConvergence = plotConvergence
@@ -89,7 +90,7 @@ class moc:
         print('Total time: ', time.time() - prt, ' [s]')
         if self.show:
             plt.show()
-            plt.close('all')
+        plt.close('all')
 
     def plot(self, numInit):
         split = self.calcExtraPoints(numInit)  # split is the starting index of the points to go at the end of states
@@ -133,7 +134,7 @@ class moc:
         fig.suptitle(f'M = {self.Me}, Rc = {self.throatRad}, nwaves = {numInit}')
 
         psft = time.time()
-        fig.savefig(f'{self.name}_nozzle_M{self.Me}_num{numInit}.png', dpi=1200)
+        fig.savefig(f'{self.path}_nozzle_M{self.Me}_num{numInit}.png', dpi=1200)
         print('savefig time:', time.time() - pmlt)
 
     def plotConverge(self):
@@ -145,9 +146,8 @@ class moc:
         ax.set_ylim([0, int(self.ARat['err'].max() * 2 + 1) / 2])
         ax.grid()
         fig.suptitle('Relative Error in Area Ratio vs Number of Initial Points')
-        fig.savefig(self.name + '_converge.png')
-        # plt.show()
-        # plt.close(fig)
+        fig.savefig(self.path + '_converge.png', dpi=400)
+        if not self.show:   plt.close(fig)
 
     def plotCenter(self):
         fig, ax1 = plt.subplots()
@@ -172,9 +172,8 @@ class moc:
         fig.subplots_adjust(top=0.58)
         fig.suptitle('Mach and Total Pressure and Temperature Ratios vs X')
         fig.tight_layout()
-        fig.savefig(self.name + '_MpT.png')
-        # plt.show()
-        # plt.close(fig)
+        fig.savefig(self.path + '_MpT.png', dpi=400)
+        if not self.show:   plt.close(fig)
 
     def calcInit(self, numInit):
         # initialize the state
@@ -201,11 +200,7 @@ class moc:
         # print(self.states.__sizeof__())
         # print(self.states.loc[:numInit-1, :], len(self.states))
 
-        # fig, ax = plt.subplots()
-        # ax.plot(self.states.x, self.states.y, '.')
-        # ax.plot([0, throatRad], [1, 1], '.')
-        # fig.savefig('init.png')
-        # plt.close(fig)
+        if not self.show:   plt.close(fig)
 
     def calculateNozzle(self, numInit):
         self.numTotalLen = numInit * (self.numFullBounce*(numInit + 1) + 1)
@@ -305,9 +300,8 @@ class moc:
         mAx.set_ylabel('Mass Flow Rate [kg/s]')
         mAx.grid()
         mfig.suptitle('Mass Flow Rate vs Operating Total Pressure')
-        mfig.savefig(self.name + '_mdot.png')
-        # plt.show()
-        # plt.close(mfig)
+        mfig.savefig(self.path + '_mdot.png', dpi=400)
+        if not self.show:   plt.close(mfig)
 
         T00 = 300
         V = 40
@@ -322,9 +316,8 @@ class moc:
         tax.set_ylabel('Total Operation Time [s]')
         tax.grid()
         tfig.suptitle('Total Opteration Time vs Operating Total Pressure')
-        tfig.savefig(self.name + '_time.png')
-        # plt.show()
-        # plt.close(tfig)
+        tfig.savefig(self.path + '_time.png', dpi=400)
+        if not self.show:   plt.close(tfig)
 
         T = minT0 * self.states.iloc[-1]['TRat']
         mu = 1.716e-5 * (T / 273.15)**1.5 * (273.15+110.4) / (T + 110.4)
@@ -337,9 +330,8 @@ class moc:
         Reax.set_ylabel('Free-Stream Unit Reynolds Number')
         Reax.grid()
         Refig.suptitle('Unit Reynolds Number vs Operating Total Pressure')
-        Refig.savefig(self.name + '_Re.png')
-        # plt.show()
-        # plt.close(Refig)
+        Refig.savefig(self.path + '_Re.png', dpi=400)
+        if not self.show:   plt.close(Refig)
 
         tH = eH / areaRat
         nl = tH * self.states['x'].max()
