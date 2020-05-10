@@ -19,10 +19,10 @@ defaultVals = { 'gamma' : 1.4,
                 'throatRad' : 1 / 2,
                 'numInit' : [64],
                 'numFullBounce' : 1,
+                'save' : False,
                 'show' : True,
                 'name' : 'mocNozzle',
                 'outputDir' : './',
-                # TODO make this a reasonable number of things to plot
                 'convergeNums' : (2 ** np.arange(3, 9)).tolist(),
                 'plotConvergence' : True,
                 'plotCenterline'  : True,
@@ -31,7 +31,7 @@ defaultVals = { 'gamma' : 1.4,
                 }
 
 class moc:
-    def __init__(self, throatRad=defaultVals['throatRad'], throatHeight=defaultVals['throatHeight'], gamma=defaultVals['gamma'], Me=defaultVals['Me'], numInit=defaultVals['numInit'], numFullBounce=defaultVals['numFullBounce'], name=defaultVals['name'], outputDir=defaultVals['outputDir'], show=defaultVals['show'], gridOverContour=defaultVals['gridOverContour'], plotConvergence=defaultVals['plotConvergence'], plotCenterline=defaultVals['plotCenterline'], calcOperation=defaultVals['calcOperation']):
+    def __init__(self, throatRad=defaultVals['throatRad'], throatHeight=defaultVals['throatHeight'], gamma=defaultVals['gamma'], Me=defaultVals['Me'], numInit=defaultVals['numInit'], numFullBounce=defaultVals['numFullBounce'], name=defaultVals['name'], outputDir=defaultVals['outputDir'], save=defaultVals['save'], show=defaultVals['show'], gridOverContour=defaultVals['gridOverContour'], plotConvergence=defaultVals['plotConvergence'], plotCenterline=defaultVals['plotCenterline'], calcOperation=defaultVals['calcOperation']):
         self.gamma = gamma
         self.Me = Me
         self.throatHeight = throatHeight
@@ -41,6 +41,7 @@ class moc:
         self.name = name
         self.outputDir = outputDir
         self.path = os.path.join(outputDir, self.name)
+        self.save = save
         self.show = show
         self.gridOverContour = gridOverContour
         self.plotConvergence = plotConvergence
@@ -67,7 +68,6 @@ class moc:
             self.ARat.loc[ind, 'rat'] = self.states['y'].max() * 2
             ind += 1
             if num in self.numInit:
-                print(num, 'point nozzle calc took :', ntime - ptime)
                 ppt = time.time()
                 self.plot(num)
                 print('plot time:', time.time() - ppt)
@@ -80,13 +80,18 @@ class moc:
                 if self.plotCenterline:
                     ppct = time.time()
                     self.plotCenter()
-                    print('calcOperatingVals time: ', time.time() - ppct)
+                    print('plot centerline time: ', time.time() - ppct)
+                if self.save:
+                    # store = pd.HDFStore(self.path + '.h5')
+                    # store[self.name + f'_nozzle_M{self.Me}_num{num}'] = self.states
+                    # store.close()
+                    self.states.to_pickle(self.path + f'_nozzle_M{self.Me}_num{num}.pkl')
 
         if self.plotConvergence:
             ppCt = time.time()
             self.ARat['err'] = abs(1 - self.ARat['rat'] / self.theoAreaRat)
             self.plotConverge()
-            print('calcOperatingVals time: ', time.time() - ppCt)
+            print('plot convergence time: ', time.time() - ppCt)
         print('Total time: ', time.time() - prt, ' [s]')
         if self.show:
             plt.show()
@@ -98,7 +103,6 @@ class moc:
 
         fig, ax = plt.subplots(2, 1, figsize=(12, 6))
         fig.subplots_adjust(left=0.1, right=1, bottom=0, top=1, hspace=0)
-        # TODO try plotting without alpha and see if its faster
         sc = ax[0].scatter(self.states['x'], self.states['y'], c=self.states['M'], alpha=.95, zorder=1, cmap=mpl.cm.gnuplot, marker='.', linewidth=1)
         pmlt = time.time()
         for i in range(numInit):
@@ -135,6 +139,7 @@ class moc:
 
         psft = time.time()
         fig.savefig(f'{self.path}_nozzle_M{self.Me}_num{numInit}.png', dpi=1200)
+        if not self.show:   plt.close(fig)
         print('savefig time:', time.time() - pmlt)
 
     def plotConverge(self):
@@ -148,6 +153,7 @@ class moc:
         fig.suptitle('Relative Error in Area Ratio vs Number of Initial Points')
         fig.savefig(self.path + '_converge.png', dpi=400)
         if not self.show:   plt.close(fig)
+        print('Final relative error: ', self.ARat['err'].iloc[-1])
 
     def plotCenter(self):
         fig, ax1 = plt.subplots()
@@ -159,8 +165,8 @@ class moc:
         ax1.tick_params(axis='y', labelcolor=lc)
 
         ax2 = ax1.twinx()
-        ax2.plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['pRat'], 'r', label='pressure ratio')
-        ax2.plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['TRat'], 'b', label='Temp ratio')
+        ax2.plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['pRat'], 'r', label='Pressure Ratio')
+        ax2.plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['TRat'], 'b', label='Temp Ratio')
         ax2.set_ylabel('Total Pressure and Temperature Ratios', color=rc)
         ax2.tick_params(axis='y', labelcolor=rc)
 
@@ -179,9 +185,6 @@ class moc:
         # initialize the state
         delta = (np.arange(numInit) * (self.thetaE - self.thetaS) / (numInit-1) + self.thetaS).tolist() + [0] * (self.numTotalLen - numInit)
         # nu at the throat is 0 because Mt = 1
-        # TODO sometimes i get warnings here, check it out
-        # it seems that the solver will try numbers < 1 and then it throws warnings
-        # but if you let it recieve the nan itll handle it
         M = np.concatenate((gas.prandtlMeyerM(delta[:numInit], self.gamma), np.zeros(self.numTotalLen - numInit)))
         self.states = pd.DataFrame({'M':M, 'delta':delta})
 
@@ -200,7 +203,6 @@ class moc:
         # print(self.states.__sizeof__())
         # print(self.states.loc[:numInit-1, :], len(self.states))
 
-        if not self.show:   plt.close(fig)
 
     def calculateNozzle(self, numInit):
         self.numTotalLen = numInit * (self.numFullBounce*(numInit + 1) + 1)
@@ -276,11 +278,11 @@ class moc:
         return i
 
     def calcOperatingVals(self):
-        tl = self.states['x'].max() - self.states.query('(rLine == -2) and (lLine != -3)')['x'].iloc[-1]
-        print(f'Triangle length: {tl:.4f} times the throat height')
         Pcr3 = self.states.iloc[-1].pRat
         print(f'Pcr3 = {Pcr3:.4g}')
-        minT0 = 55 / self.states['TRat'].iloc[-1]
+        tl = self.states['x'].max() - self.states.query('(rLine == -2) and (lLine != -3)')['x'].iloc[-1]
+        print(f'Triangle length: {tl:.4f} times the throat height')
+        minT0 = 55 / self.states['TRat'].min()
         print(f'Minimum total Temperature: {minT0:.4f} K')
         minp0 = .1 / Pcr3
         print(f'Minimum total pressure: {minp0:.4f} [psia]')
@@ -302,6 +304,7 @@ class moc:
         mfig.suptitle('Mass Flow Rate vs Operating Total Pressure')
         mfig.savefig(self.path + '_mdot.png', dpi=400)
         if not self.show:   plt.close(mfig)
+        print(f'The mass flow rate ranges from {min(mdot):.4f} to {max(mdot):.4f} [kg/s]')
 
         T00 = 300
         V = 40
@@ -315,9 +318,10 @@ class moc:
         tax.set_xlabel('Operating Total Pressure [Pa]')
         tax.set_ylabel('Total Operation Time [s]')
         tax.grid()
-        tfig.suptitle('Total Opteration Time vs Operating Total Pressure')
+        tfig.suptitle('Total Operation Time vs Operating Total Pressure')
         tfig.savefig(self.path + '_time.png', dpi=400)
         if not self.show:   plt.close(tfig)
+        print(f'Maximum operation time: {max(t):.4f} [s]')
 
         T = minT0 * self.states.iloc[-1]['TRat']
         mu = 1.716e-5 * (T / 273.15)**1.5 * (273.15+110.4) / (T + 110.4)
@@ -332,10 +336,11 @@ class moc:
         Refig.suptitle('Unit Reynolds Number vs Operating Total Pressure')
         Refig.savefig(self.path + '_Re.png', dpi=400)
         if not self.show:   plt.close(Refig)
+        print(f'The unit Reynolds number ranges from {min(Reprime):.4f} to {max(Reprime):.4f} [1/m]')
 
         tH = eH / areaRat
         nl = tH * self.states['x'].max()
-        print(f'Nozzle length is {nl:.4f} [m]')
+        print(f'Nozzle length is {nl:.4f} [m], {self.states["x"].max():.4f} times longer than the throat height')
 
         lowArea = gas.areaRatio(0.05, self.gamma) * tH*w
         print(f'The area required for M <= 0.05 is {lowArea:.4g} [m^2] ({lowArea*1000000:.4g} [mm^2])')
@@ -353,12 +358,9 @@ class moc:
 
 
     def calcFirstPoint(self, numInit):
-        # TODO what i really want is
-        # 1 for this to be more efficient so i dont have to wait for this part to calculate and 
-        # 2 for this to use the calcCurve function to calculate the curve for the first line and find the right starting angle to make the first point on the wall within about 2 steps out of the last point of the circle
-        # so i should TODO test if using the fsolve function is faster than my newtons or secant method
+        # so i should TODO test if using the fsolve function is faster than my secant method
         nuE = gas.prandtlMeyerAng(self.Me, self.gamma)
-        # TODO figure out if this is actually what i want for the max angle
+        # TODO figure out what angle to use for multiple bounces
         self.thetaE = nuE / 2
         dxE = self.throatRad*np.sin(d2r*self.thetaE)
 
@@ -426,11 +428,12 @@ def parse(clargs=sys.argv[1:]):
     parser.add_argument('--numFullBounce',     '-b', default=defaultVals['numFullBounce'], type=int,            help='number of times the characteristic curves should bounce off the centerline (not implemented, do not use)')
     parser.add_argument('--name',              '-n', default=defaultVals['name'],          type=str,            help='name of the run (for image output)')
     parser.add_argument('--outputDir',         '-o', default=defaultVals['outputDir'],     type=str,            help='name of the directory to output the plot images to')
+    parser.add_argument('--save',              '-S', action=storeTF('save'),                                    help='save the data to an pickle file (h5 requires another dependency)')
     parser.add_argument('--noshow',            '-s', action=storeTF('show'),                                    help='toggle off showing interactive plots at the end')
     parser.add_argument('--gridOverContour',   '-G', action=storeTF('gridOverContour'),                         help='show characteristic curves over contour plot')
     parser.add_argument('--noplotConvergence', '-C', action=storeTF('plotConvergence'),                         help='toggle off plotting the convergence WRT number of initial waves')
     parser.add_argument('--noplotCenterline',  '-c', action=storeTF('plotCenterline'),                          help='toggle off plotting Mach and total pressure and temperature ratios on the centerline')
-    parser.add_argument('--nocalcOperation',   '-O', action=storeTF('calcOperation'),                           help='toggle off calculation the answers to the opterations questions for part 3')
+    parser.add_argument('--nocalcOperation',   '-O', action=storeTF('calcOperation'),                           help='toggle off calculation the answers to the operations questions for part 3')
 
     args = parser.parse_args()
     # TODO actually do some error checking on the values inputted
@@ -438,7 +441,7 @@ def parse(clargs=sys.argv[1:]):
 
 def main():
     args = parse()
-    nozzle = moc(throatRad=args.throatRad, throatHeight=args.throatHeight, gamma=args.gamma, Me=args.Mach, numInit=args.numInit, numFullBounce=args.numFullBounce, name=args.name, outputDir=args.outputDir, show=args.noshow, gridOverContour=args.gridOverContour, plotConvergence=args.noplotConvergence, plotCenterline=args.noplotCenterline, calcOperation=args.nocalcOperation)
+    nozzle = moc(throatRad=args.throatRad, throatHeight=args.throatHeight, gamma=args.gamma, Me=args.Mach, numInit=args.numInit, numFullBounce=args.numFullBounce, name=args.name, outputDir=args.outputDir, save=args.save, show=args.noshow, gridOverContour=args.gridOverContour, plotConvergence=args.noplotConvergence, plotCenterline=args.noplotCenterline, calcOperation=args.nocalcOperation)
     nozzle.run()
 
 if __name__ == '__main__':
