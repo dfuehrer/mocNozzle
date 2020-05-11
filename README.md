@@ -4,6 +4,7 @@
 
 ## Usage
  * Download folder
+ * make sure you have python and pip installed
  * run packages.bat file to install the necessary python libraries with pip
    * depends on numpy, pandas, scipy, matplotlib 
  * run mocNozzle.py from command line with desired arguments
@@ -65,11 +66,11 @@ mocNozzle.py [-h] [--throatRad THROATRAD] [--throatHeight THROATHEIGHT] [--gamma
 ### Example
  * generate all plots and output without interactive plots
 ```
-py mocNozzle.py -s
+python .\mocNozzle.py -s
 ```
  * run with interactive plots, without convergence, with 64 starting points
 ```
-py mocNozzle.py -Ci 64
+python .\mocNozzle.py -Ci 64
 ```
 
  ![final graph](/plots/mocNozzle_nozzle_M5_num512_rot.png)
