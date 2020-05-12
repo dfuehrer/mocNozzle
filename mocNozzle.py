@@ -53,6 +53,7 @@ class moc:
 
 
     def run(self):
+        # call all the functions to calculate the nozzle characteristics
         prt = time.time()
         self.ARat = pd.DataFrame({'num':np.unique(self.convergeNums + self.numInit)})
         ind = 0
@@ -363,6 +364,7 @@ class moc:
         # TODO figure out what angle to use for multiple bounces
         self.thetaE = nuE / 2
         dxE = self.throatRad*np.sin(d2r*self.thetaE)
+        print(dxE)
 
 
         def firstPntErr(ts):
@@ -373,18 +375,25 @@ class moc:
             # print(self.states.loc[:numInit*3+1, ['x', 'y', 'M', 'delta', 'nu', 'mu']])
             x1 = self.states.loc[3*numInit+1, 'x']
             # print('x= ', self.states.loc[2*numInit, 'x'], x1, dxE, (self.states.loc[2*numInit, 'x'] - x1) / (x1 - dxE) - .5)
-            return (self.states.loc[2*numInit, 'x'] - x1) / (x1 - dxE) + .45, i
+            return ((self.states.loc[2*numInit, 'x'] - x1) / (x1 - dxE) + .45)*(1-2*(x1<dxE)), i
         
 
         ptime = time.time()
-        tol = .05
+        tol = .1
         newThetaS = self.thetaE / numInit/2
+        newThetaS = 1.45
         err, i = firstPntErr(newThetaS)
+        dx = self.throatRad * d2r*self.thetaE/numInit
+        print(err, dx)
+        iter = 0
         if abs(err) > tol:
             tS = self.thetaE / numInit * 2/3
             print(tS, newThetaS)
             tmp = firstPntErr(tS)[0]
-            while abs(err) > tol:
+            cond = (abs(err) > tol) or (err - .45 < -1)
+            mindx1 = abs(self.states.loc[3*numInit+1, 'x'])
+            while cond:
+                iter += 1
                 old = tS
                 tS = newThetaS
                 tmp2 = tmp
@@ -392,8 +401,17 @@ class moc:
                 newThetaS = tS - (tmp*(tS-old)) / (tmp - tmp2)
                 if newThetaS < 0:   newThetaS = tS/2
                 if not np.isfinite(newThetaS):  newThetaS = tS
-                err, i = firstPntErr(newThetaS)
-                print(tS, newThetaS, err, tmp)
+                pdx1 = self.states.loc[3*numInit+1, 'x'] - dxE
+                if pdx1 > 0 and pdx1 < mindx1:
+                    mindx1 = pdx1
+                if iter <= 10:
+                    err, i = firstPntErr(newThetaS)
+                    cond = (abs(err) > tol) or (err - .45 < -1)
+                else:
+                    err, i = firstPntErr(newThetaS)
+                    err =  abs(self.states.loc[3*numInit+1, 'x'] - dxE) + abs(self.states.loc[2*numInit, 'x'] - dxE) - mindx1
+                    cond = (self.states.loc[2*numInit, 'x'] < dxE) or (err > 32*dx)
+                print(iter, tS, newThetaS, err, tmp, mindx1)
         print('first point time: ', time.time() - ptime)
         self.thetaS = newThetaS
         # print(self.thetaS)

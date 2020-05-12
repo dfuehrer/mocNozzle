@@ -1,13 +1,13 @@
 ## mocNozzle
- * calculate wind tunnel nozzle contour
- * calculate some operation specifications
+ * Calculate wind tunnel nozzle contour
+ * Calculate some operation specifications
 
 ## Usage
  * Download folder
- * make sure you have python and pip installed
- * run packages.bat file to install the necessary python libraries with pip
-   * depends on numpy, pandas, scipy, matplotlib 
- * run mocNozzle.py from command line with desired arguments
+ * Make sure you have python and pip installed
+ * Run packages.bat file to install the necessary python libraries with pip
+   * Depends on numpy, pandas, scipy, matplotlib 
+ * Run mocNozzle.py from command line with desired arguments
 ```
 mocNozzle.py [-h] [--throatRad THROATRAD] [--throatHeight THROATHEIGHT] [--gamma GAMMA] [--Mach MACH]
                     [--numInit NUMINIT [NUMINIT ...]] [--numFullBounce NUMFULLBOUNCE] [--name NAME]
@@ -46,7 +46,7 @@ mocNozzle.py [-h] [--throatRad THROATRAD] [--throatHeight THROATHEIGHT] [--gamma
  * `--nocalcOperation, -O`
    * toggle off calculation the answers to the operations questions for part 3
 ### Defaults
- * By default, mocNozzle.py runs with
+ By default, mocNozzle.py runs with
  * gamma = 1.4
  * R  = 287
  * Me = 5
