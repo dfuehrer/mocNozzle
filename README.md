@@ -73,4 +73,4 @@ python .\mocNozzle.py -s
 python .\mocNozzle.py -Ci 64
 ```
 
- ![final graph](/plots/mocNozzle_nozzle_M5_num512_rot.png)
+ ![final graph](/plots/mocNozzle_nozzle_M5_num512.png)
