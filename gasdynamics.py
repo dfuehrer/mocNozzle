@@ -55,6 +55,9 @@ def dbmBeta(M, delta, gamma=1.4):
 def dbmDelta(M, Beta, gamma=1.4):
     return np.arctan2(M**2 * np.sin(d2r*2*Beta) - 2/np.tan(d2r*Beta), M**2 * (gamma + np.cos(d2r*2*Beta)) + 2)*r2d
 
+def dbmMach(delta, Beta, gamma=1.4):
+    return np.sqrt(2 * (np.cot(Beta*d2r) + np.tan(delta*d2r)) / (np.sin(2*Beta*d2r) - np.tan(delta*d2r) * (gamma + cos(2*Beta*d2r))))
+
 def p2Byp1(M, gamma=1.4):
     return (2*gamma * M**2 - (gamma - 1)) / (gamma + 1)
 

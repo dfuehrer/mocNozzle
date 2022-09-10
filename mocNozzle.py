@@ -107,10 +107,10 @@ class moc:
         sc = ax[0].scatter(self.states['x'], self.states['y'], c=self.states['M'], alpha=.95, zorder=1, cmap=mpl.cm.gnuplot, marker='.', linewidth=1)
         pmlt = time.time()
         for i in range(numInit):
-            ax[0].plot(self.states.query(f'(lLine == {i}) or (rLine == {i})')['x'], self.states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', LineWidth=.5, Color='grey', zorder=0)
+            ax[0].plot(self.states.query(f'(lLine == {i}) or (rLine == {i})')['x'], self.states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', linewidth=.5, color='grey', zorder=0)
         print('gen grid lines time:', time.time() - pmlt)
-        ax[0].plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['y'], 'k--', LineWidth=1, zorder=1)
-        ax[0].plot(self.states.query(f'lLine == {-1}')['x'], self.states.query(f'lLine == {-1}')['y'], 'k', LineWidth=1, zorder=1)
+        ax[0].plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['y'], 'k--', linewidth=1, zorder=1)
+        ax[0].plot(self.states.query(f'lLine == {-1}')['x'], self.states.query(f'lLine == {-1}')['y'], 'k', linewidth=1, zorder=1)
         fig.colorbar(sc, ax=ax[0], shrink=.6, aspect=10, label='M', ticks=np.arange(1, int(self.states['M'].max()+10**-10) + 1))
         ax[0].grid()
         ax[0].set_aspect('equal')
@@ -125,9 +125,9 @@ class moc:
         con = ax[1].tripcolor(triang, self.states['M'], shading='gouraud', cmap=mpl.cm.gnuplot)
         if self.gridOverContour:
             for i in range(numInit):
-                ax[1].plot(self.states.query(f'(lLine == {i}) or (rLine == {i})')['x'], self.states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', LineWidth=.5, Color='grey')
-        ax[1].plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['y'], 'k--', LineWidth=1, zorder=1)
-        ax[1].plot(self.states.query(f'lLine == {-1}')['x'], self.states.query(f'lLine == {-1}')['y'], 'k', LineWidth=1, zorder=1)
+                ax[1].plot(self.states.query(f'(lLine == {i}) or (rLine == {i})')['x'], self.states.query(f'(lLine == {i}) or (rLine == {i})')['y'], '-', linewidth=.5, color='grey')
+        ax[1].plot(self.states.query(f'rLine == {-2}')['x'], self.states.query(f'rLine == {-2}')['y'], 'k--', linewidth=1, zorder=1)
+        ax[1].plot(self.states.query(f'lLine == {-1}')['x'], self.states.query(f'lLine == {-1}')['y'], 'k', linewidth=1, zorder=1)
         fig.colorbar(con, ax=ax[1], shrink=.6, aspect=10, label='M', ticks=np.arange(1, int(round(self.states['M'].max())) + 1))
         ax[1].grid()
         ax[1].set_aspect('equal')
@@ -139,7 +139,8 @@ class moc:
         fig.suptitle(f'M = {self.Me}, Rc = {self.throatRad}, nwaves = {numInit}')
 
         psft = time.time()
-        fig.savefig(f'{self.path}_nozzle_M{self.Me}_num{numInit}.png', dpi=1200)
+        #fig.savefig(f'{self.path}_nozzle_M{self.Me}_num{numInit}.png', dpi=1200)
+        fig.savefig(f'{self.path}_nozzle_M{self.Me}_num{numInit}.eps', dpi=1200)
         if not self.show:   plt.close(fig)
         print('savefig time:', time.time() - pmlt)
 
@@ -152,7 +153,8 @@ class moc:
         ax.set_ylim([0, int(self.ARat['err'].max() * 2 + 1) / 2])
         ax.grid()
         fig.suptitle('Relative Error in Area Ratio vs Number of Initial Points')
-        fig.savefig(self.path + '_converge.png', dpi=400)
+        #fig.savefig(self.path + '_converge.png', dpi=400)
+        fig.savefig(self.path + '_converge.eps', dpi=400)
         if not self.show:   plt.close(fig)
         print('Final relative error: ', self.ARat['err'].iloc[-1])
 
@@ -179,7 +181,8 @@ class moc:
         fig.subplots_adjust(top=0.58)
         fig.suptitle('Mach and Total Pressure and Temperature Ratios vs X')
         fig.tight_layout()
-        fig.savefig(self.path + '_MpT.png', dpi=400)
+        #fig.savefig(self.path + '_MpT.png', dpi=400)
+        fig.savefig(self.path + '_MpT.eps', dpi=400)
         if not self.show:   plt.close(fig)
 
     def calcInit(self, numInit):
@@ -303,7 +306,8 @@ class moc:
         mAx.set_ylabel('Mass Flow Rate [kg/s]')
         mAx.grid()
         mfig.suptitle('Mass Flow Rate vs Operating Total Pressure')
-        mfig.savefig(self.path + '_mdot.png', dpi=400)
+        #mfig.savefig(self.path + '_mdot.png', dpi=400)
+        mfig.savefig(self.path + '_mdot.eps', dpi=400)
         if not self.show:   plt.close(mfig)
         print(f'The mass flow rate ranges from {min(mdot):.4f} to {max(mdot):.4f} [kg/s]')
 
@@ -320,7 +324,8 @@ class moc:
         tax.set_ylabel('Total Operation Time [s]')
         tax.grid()
         tfig.suptitle('Total Operation Time vs Operating Total Pressure')
-        tfig.savefig(self.path + '_time.png', dpi=400)
+        #tfig.savefig(self.path + '_time.png', dpi=400)
+        tfig.savefig(self.path + '_time.eps', dpi=400)
         if not self.show:   plt.close(tfig)
         print(f'Maximum operation time: {max(t):.4f} [s]')
 
@@ -335,7 +340,8 @@ class moc:
         Reax.set_ylabel('Free-Stream Unit Reynolds Number')
         Reax.grid()
         Refig.suptitle('Unit Reynolds Number vs Operating Total Pressure')
-        Refig.savefig(self.path + '_Re.png', dpi=400)
+        #Refig.savefig(self.path + '_Re.png', dpi=400)
+        Refig.savefig(self.path + '_Re.eps', dpi=400)
         if not self.show:   plt.close(Refig)
         print(f'The unit Reynolds number ranges from {min(Reprime):.4f} to {max(Reprime):.4f} [1/m]')
 
